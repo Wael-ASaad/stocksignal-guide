@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=1280"/>
+<title>StockSignal™ — Inventory Decision Engine</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+ 
+  :root {
+    --navy:    #0D1B2A;
+    --navy2:   #162336;
+    --navy3:   #1E3A5F;
+    --ace:     #2E86C1;
+    --red:     #E74C3C;
+    --red-bg:  #2C1810;
+    --org:     #E67E22;
+    --org-bg:  #2C1F10;
+    --yel:     #F1C40F;
+    --yel-bg:  #2C2810;
+    --grn:     #2ECC71;
+    --grn-bg:  #102C1A;
+    --gray:    #7F8C8D;
+    --gray-bg: #1A1F24;
+    --white:   #FFFFFF;
+    --sub:     #A8B8CC;
+    --border:  #2A3F5F;
+    --font-main: 'Syne', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+ 
+  * { margin:0; padding:0; box-sizing:border-box; }
+ 
+  body {
+    background: var(--navy);
+    color: var(--white);
+    font-family: var(--font-main);
+    width: 1280px;
+    min-height: 720px;
+    overflow-x: hidden;
+  }
+ 
+  /* ── HEADER ── */
+  .header {
+    background: var(--navy2);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-title { display:flex; align-items:baseline; gap:10px; }
+  .header-title h1 { font-size:20px; font-weight:800; letter-spacing:-0.5px; }
+  .header-title span { font-size:11px; color:var(--sub); font-family:var(--font-mono); }
+  .header-tabs { display:flex; gap:6px; }
+  .tab {
+    padding: 5px 14px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--sub);
+    transition: all 0.2s;
+    font-family: var(--font-main);
+    letter-spacing: 0.3px;
+  }
+  .tab:hover { border-color: var(--ace); color: var(--ace); }
+  .tab.active { background: var(--ace); border-color: var(--ace); color: var(--white); }
+  .header-stats { display:flex; gap:12px; }
+  .stat-pill {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    border: 1px solid;
+  }
+ 
+  /* ── PAGES ── */
+  .page { display:none; padding: 14px 16px; }
+  .page.active { display:block; }
+ 
+  /* ── OVERVIEW PAGE ── */
+  .overview-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .tier-column {
+    border-radius: 10px;
+    border: 1px solid;
+    overflow: hidden;
+  }
+  .tier-header {
+    padding: 8px 10px;
+    text-align: center;
+  }
+  .tier-header .tier-label {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+  }
+  .tier-header .tier-count {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    opacity: 0.8;
+    margin-top: 2px;
+  }
+  .tier-header .tier-meaning {
+    font-size: 9px;
+    opacity: 0.7;
+    margin-top: 3px;
+  }
+  .signal-card {
+    margin: 6px;
+    border-radius: 7px;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.18s;
+    position: relative;
+    overflow: hidden;
+  }
+  .signal-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  }
+  .signal-card-inner {
+    padding: 7px 8px;
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+  }
+  .signal-num {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .signal-content { flex: 1; min-width: 0; }
+  .signal-en {
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+  .signal-short {
+    font-size: 9px;
+    opacity: 0.65;
+    margin-top: 2px;
+    line-height: 1.3;
+  }
+  .signal-flags {
+    display: flex;
+    gap: 2px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+  .flag-icon {
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    background: rgba(0,0,0,0.3);
+  }
+ 
+  /* ── DETAIL MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    width: 660px;
+    max-height: 90vh;
+    border-radius: 14px;
+    border: 1px solid;
+    overflow-y: auto;
+    position: relative;
+    animation: modalIn 0.22s ease;
+  }
+  @keyframes modalIn {
+    from { opacity:0; transform:scale(0.96) translateY(8px); }
+    to   { opacity:1; transform:scale(1) translateY(0); }
+  }
+  .modal-header {
+    padding: 16px 18px 12px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    border-bottom: 1px solid;
+  }
+  .modal-header-left { display:flex; align-items:center; gap:12px; }
+  .modal-num {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    font-weight: 800;
+    font-family: var(--font-mono);
+    flex-shrink: 0;
+  }
+  .modal-titles h2 { font-size: 18px; font-weight: 800; }
+  .modal-titles .modal-severity {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    margin-top: 3px;
+    opacity: 0.75;
+  }
+  .modal-close {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    background: var(--border);
+    border: none;
+    color: var(--sub);
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .modal-close:hover { background: var(--navy3); color: var(--white); }
+  .modal-body { padding: 16px 18px; }
+  .modal-section { margin-bottom: 14px; }
+  .modal-section-title {
+    font-size: 9px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--sub);
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-explanation {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #D0DCE8;
+  }
+  .modal-user-tip {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.5;
+    border-left: 3px solid;
+  }
+  .modal-flags-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .modal-flag-item {
+    padding: 7px 10px;
+    border-radius: 7px;
+    background: var(--navy2);
+    border: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .modal-flag-icon { font-size: 14px; flex-shrink:0; margin-top:1px; }
+  .modal-flag-name {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--sub);
+  }
+  .modal-flag-cond {
+    font-size: 10px;
+    color: var(--white);
+    margin-top: 2px;
+    line-height: 1.3;
+  }
+  .actions-list { display:flex; flex-direction:column; gap:5px; }
+  .action-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 7px;
+    background: var(--navy2);
+    border: 1px solid var(--border);
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .action-icon { font-size: 14px; flex-shrink:0; margin-top:1px; }
+  .priority-badge {
+    font-size: 8px;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin-top: 2px;
+  }
+ 
+  /* ── FLAGS PAGE ── */
+  .flags-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .flag-group-card {
+    border-radius: 10px;
+    border: 1px solid;
+    overflow: hidden;
+  }
+  .flag-group-header {
+    padding: 9px 12px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+  }
+  .flag-row {
+    display: grid;
+    grid-template-columns: 28px 140px 1fr 80px;
+    gap: 8px;
+    align-items: center;
+    padding: 7px 12px;
+    border-top: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  .flag-row:hover { background: rgba(255,255,255,0.03); }
+  .flag-row-icon { font-size: 16px; text-align:center; }
+  .flag-row-name { font-size: 10px; font-family: var(--font-mono); font-weight: 600; }
+  .flag-row-cond { font-size: 10px; color: var(--sub); line-height: 1.4; }
+  .flag-row-thresh {
+    font-size: 9px;
+    font-family: var(--font-mono);
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-align: center;
+    font-weight: 600;
+  }
+ 
+  /* ── THRESHOLDS PAGE ── */
+  .thresholds-layout { display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
+  .threshold-card {
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    background: var(--navy2);
+  }
+  .threshold-header {
+    background: var(--navy3);
+    padding: 9px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--sub);
+    letter-spacing: 0.5px;
+  }
+  .threshold-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+  }
+  .threshold-label { color: var(--sub); }
+  .threshold-val {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+ 
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: var(--navy2); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+ 
+  /* ── SEARCH BAR ── */
+  .search-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .search-input {
+    flex: 1;
+    background: var(--navy2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 7px 12px;
+    color: var(--white);
+    font-family: var(--font-main);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-input:focus { border-color: var(--ace); }
+  .search-input::placeholder { color: var(--sub); opacity:0.6; }
+  .filter-btn {
+    padding: 7px 12px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--sub);
+    font-size: 11px;
+    font-family: var(--font-main);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-weight: 600;
+  }
+  .filter-btn:hover, .filter-btn.active {
+    border-color: var(--ace);
+    color: var(--ace);
+  }
+  .filter-btn.f-red.active    { border-color:var(--red);  color:var(--red); }
+  .filter-btn.f-org.active    { border-color:var(--org);  color:var(--org); }
+  .filter-btn.f-yel.active    { border-color:var(--yel);  color:var(--yel); }
+  .filter-btn.f-grn.active    { border-color:var(--grn);  color:var(--grn); }
+  .filter-btn.f-gray.active   { border-color:var(--gray); color:var(--gray);}
+ 
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+ 
+<!-- ══ HEADER ══════════════════════════════════════════ -->
+<div class="header">
+  <div class="header-title">
+    <h1>StockSignal™</h1>
+    <span>Inventory Decision Engine · v1.0 · June 2026</span>
+  </div>
+  <div class="header-tabs">
+    <button class="tab active" onclick="showPage('overview')">📊 Overview</button>
+    <button class="tab" onclick="showPage('signals')">🔍 All Signals</button>
+    <button class="tab" onclick="showPage('flags')">🚩 Flag Engine</button>
+    <button class="tab" onclick="showPage('thresholds')">📐 Thresholds</button>
+  </div>
+  <div class="header-stats">
+    <span class="stat-pill" style="color:var(--red);border-color:var(--red)">🔴 5 Critical</span>
+    <span class="stat-pill" style="color:var(--org);border-color:var(--org)">🟠 7 High</span>
+    <span class="stat-pill" style="color:var(--yel);border-color:var(--yel)">🟡 9 Moderate</span>
+    <span class="stat-pill" style="color:var(--grn);border-color:var(--grn)">🟢 5 Healthy</span>
+    <span class="stat-pill" style="color:var(--gray);border-color:var(--gray)">⬜ 2 Special</span>
+  </div>
+</div>
+ 
+<!-- ══ PAGE 1: OVERVIEW ════════════════════════════════ -->
+<div class="page active" id="page-overview">
+ 
+  <!-- Executive Summary Strip -->
+  <div style="background:var(--navy3);border:1px solid var(--border);border-radius:10px;padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;gap:16px;">
+    <div style="font-size:28px;flex-shrink:0;">⚙️</div>
+    <div>
+      <div style="font-size:13px;font-weight:800;margin-bottom:3px;">How StockSignal Works</div>
+      <div style="font-size:11px;color:var(--sub);line-height:1.5;">
+        StockSignal evaluates <strong style="color:var(--white)">5 dimensions</strong> per brand —
+        <span style="color:var(--ace)">Sales Trend</span>,
+        <span style="color:var(--org)">Aged Stock</span>,
+        <span style="color:var(--grn)">Purchase Orders</span>,
+        <span style="color:var(--yel)">Replenishment Need</span>, and
+        <span style="color:#F9CA24">Efficiency (DIO/ITR)</span> —
+        and returns a <strong style="color:var(--white)">single action label</strong> per brand using a
+        SWITCH(TRUE()) priority chain. The first matching condition wins.
+        <strong style="color:var(--white)">27 signals</strong> cover every inventory state from
+        <span style="color:var(--red)">Critical (immediate action)</span> to
+        <span style="color:var(--grn)">Healthy (maintain course)</span>.
+        Click any signal card for full detail, flags, and recommended actions.
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;flex-shrink:0;min-width:260px;">
+      <div style="background:var(--navy2);border:1px solid var(--border);border-radius:7px;padding:6px 10px;text-align:center;">
+        <div style="font-size:20px;font-weight:800;color:var(--ace);">9</div>
+        <div style="font-size:9px;color:var(--sub);">Input Measures</div>
+      </div>
+      <div style="background:var(--navy2);border:1px solid var(--border);border-radius:7px;padding:6px 10px;text-align:center;">
+        <div style="font-size:20px;font-weight:800;color:var(--org);">20</div>
+        <div style="font-size:9px;color:var(--sub);">Flag Variables</div>
+      </div>
+      <div style="background:var(--navy2);border:1px solid var(--border);border-radius:7px;padding:6px 10px;text-align:center;">
+        <div style="font-size:20px;font-weight:800;color:var(--grn);">27</div>
+        <div style="font-size:9px;color:var(--sub);">Output Signals</div>
+      </div>
+    </div>
+  </div>
+ 
+  <!-- 5-Column Tier Grid -->
+  <div class="overview-grid" id="overview-grid"></div>
+ 
+  <!-- Flow Diagram Strip -->
+  <div style="background:var(--navy2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;">
+    <div style="font-size:10px;color:var(--sub);font-family:var(--font-mono);font-weight:600;">DECISION FLOW</div>
+    <div style="display:flex;align-items:center;gap:0;flex:1;margin:0 16px;">
+      <div style="background:var(--ace);border-radius:6px;padding:5px 12px;font-size:10px;font-weight:700;color:var(--navy);">RAW INPUTS<br/><span style="font-weight:400;font-size:9px;">9 measures</span></div>
+      <div style="color:var(--border);font-size:18px;margin:0 4px;">→</div>
+      <div style="background:var(--org);border-radius:6px;padding:5px 12px;font-size:10px;font-weight:700;color:var(--navy);">FLAG ENGINE<br/><span style="font-weight:400;font-size:9px;">20 boolean flags</span></div>
+      <div style="color:var(--border);font-size:18px;margin:0 4px;">→</div>
+      <div style="background:var(--yel);border-radius:6px;padding:5px 12px;font-size:10px;font-weight:700;color:var(--navy);">SWITCH LOGIC<br/><span style="font-weight:400;font-size:9px;">priority chain</span></div>
+      <div style="color:var(--border);font-size:18px;margin:0 4px;">→</div>
+      <div style="background:var(--grn);border-radius:6px;padding:5px 12px;font-size:10px;font-weight:700;color:var(--navy);">ACTION SIGNAL<br/><span style="font-weight:400;font-size:9px;">27 outputs</span></div>
+      <div style="color:var(--border);font-size:18px;margin:0 4px;">→</div>
+      <div style="background:var(--navy3);border:1px solid var(--border);border-radius:6px;padding:5px 12px;font-size:10px;font-weight:700;color:var(--sub);">POWER BI<br/><span style="font-weight:400;font-size:9px;">matrix cell</span></div>
+    </div>
+    <div style="font-size:9px;color:var(--sub);font-family:var(--font-mono);">Click any card above for details</div>
+  </div>
+</div>
+ 
+<!-- ══ PAGE 2: ALL SIGNALS (searchable) ═══════════════ -->
+<div class="page" id="page-signals">
+  <div class="search-wrap">
+    <input class="search-input" id="signal-search" placeholder="Search signals by name, action, or condition..." oninput="filterSignals()"/>
+    <button class="filter-btn f-gray active" onclick="toggleFilter('SPECIAL')">⬜ Special</button>
+    <button class="filter-btn f-red  active" onclick="toggleFilter('CRITICAL')">🔴 Critical</button>
+    <button class="filter-btn f-org  active" onclick="toggleFilter('HIGH')">🟠 High</button>
+    <button class="filter-btn f-yel  active" onclick="toggleFilter('MODERATE')">🟡 Moderate</button>
+    <button class="filter-btn f-grn  active" onclick="toggleFilter('HEALTHY')">🟢 Healthy</button>
+  </div>
+  <div id="signals-list" style="display:flex;flex-direction:column;gap:5px;max-height:580px;overflow-y:auto;"></div>
+</div>
+ 
+<!-- ══ PAGE 3: FLAG ENGINE ═════════════════════════════ -->
+<div class="page" id="page-flags">
+  <div class="flags-grid" id="flags-grid"></div>
+</div>
+ 
+<!-- ══ PAGE 4: THRESHOLDS ═════════════════════════════ -->
+<div class="page" id="page-thresholds">
+  <div class="thresholds-layout" id="thresholds-layout"></div>
+</div>
+ 
+<!-- ══ DETAIL MODAL ═══════════════════════════════════ -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModalOnBg(event)">
+  <div class="modal" id="modal-box">
+    <div class="modal-header" id="modal-header">
+      <div class="modal-header-left">
+        <div class="modal-num" id="modal-num"></div>
+        <div class="modal-titles">
+          <h2 id="modal-title"></h2>
+          <div class="modal-severity" id="modal-severity"></div>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+ 
+<script>
+// ═══════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════
+const TIERS = {
+  SPECIAL:  { label:"⬜ SPECIAL",  color:"#7F8C8D", bg:"#1A1F24", meaning:"No data or no signal" },
+  CRITICAL: { label:"🔴 CRITICAL", color:"#E74C3C", bg:"#2C1810", meaning:"Immediate intervention required" },
+  HIGH:     { label:"🟠 HIGH",     color:"#E67E22", bg:"#2C1F10", meaning:"Significant risk developing" },
+  MODERATE: { label:"🟡 MODERATE", color:"#F1C40F", bg:"#2C2810", meaning:"Monitor and optimize" },
+  HEALTHY:  { label:"🟢 HEALTHY",  color:"#2ECC71", bg:"#102C1A", meaning:"Inventory supports demand" },
+};
+ 
+const FLAG_ICONS = {
+  vSalesGrowing:   { icon:"⏫", label:"Growing" },
+  vSalesNormal:    { icon:"🔼", label:"Normal" },
+  vSalesFalling:   { icon:"🔽", label:"Falling" },
+  vSalesDead:      { icon:"⏬", label:"Dead" },
+  vNoSalesHistory: { icon:"❌", label:"No History" },
+  vAgedExists:     { icon:"📦", label:"Aged Exists" },
+  vAgedHigh:       { icon:"⚠️", label:"Aged High" },
+  vAgedYPctRed:    { icon:"🔴", label:"Y%>15%" },
+  vAgedYPctAmber:  { icon:"🟡", label:"Y%5-15%" },
+  vAgedProfileBad: { icon:"⛔", label:"Age Bad" },
+  vPOExists:       { icon:"📋", label:"PO Exists" },
+  vPOOverloaded:   { icon:"💥", label:"PO Over" },
+  vStockLow:       { icon:"📉", label:"Stock Low" },
+  vPOCoversGap:    { icon:"✔️", label:"PO Covers" },
+  vPlacePO:        { icon:"🛒", label:"Place PO" },
+  vDIOCritical:    { icon:"🚨", label:"DIO>90" },
+  vDIOMid:         { icon:"⚡", label:"DIO50-90" },
+  vDIOHealthy:     { icon:"✅", label:"DIO OK" },
+  vITRLow:         { icon:"🐢", label:"ITR<4" },
+};
+ 
+const SIGNALS = [
+  {
+    id:"S1", tier:"SPECIAL", num:"S1",
+    en:"Dead stock exists",
+    short:"No sales ever — aged stock sitting idle",
+    explanation:"This brand has never recorded sales in the current or prior year, yet aged stock exists on the shelf. The stock has no demand history to justify its presence and represents capital locked in non-moving inventory.",
+    user_tip:"⚠️ This brand has stock that has never sold. Escalate to write-off review immediately.",
+    flags:["vNoSalesHistory","vAgedExists"],
+    actions:[
+      { icon:"🔍", text:"Investigate origin of the stock — was it a test order or supplier push?", priority:"URGENT" },
+      { icon:"📋", text:"Raise a write-off review request with finance", priority:"URGENT" },
+      { icon:"🚫", text:"Do not place any new purchase orders for this brand", priority:"BLOCK" },
+    ]
+  },
+  {
+    id:"S2", tier:"SPECIAL", num:"S2",
+    en:"No signal (blank)",
+    short:"No data available — row is empty",
+    explanation:"The brand has no sales in any period and no aged stock on hand. There is no meaningful data to evaluate. The row may represent a new listing, a delisted brand, or a data entry error.",
+    user_tip:"ℹ️ No data exists for this brand. Check if it should remain in the active portfolio.",
+    flags:["vNoSalesHistory"],
+    actions:[
+      { icon:"🔎", text:"Verify if the brand is active or should be removed from the portfolio", priority:"LOW" },
+      { icon:"📊", text:"Check source systems for missing data or mapping issues", priority:"LOW" },
+    ]
+  },
+  {
+    id:"1", tier:"CRITICAL", num:"1",
+    en:"Critical halt POs",
+    short:"No sales + overstock + POs still arriving",
+    explanation:"Sales have completely stopped while aged stock is already above 125% of annual average demand. Despite this, open purchase orders are still loading additional supply into an already oversupplied position — making the situation actively worse.",
+    user_tip:"🔴 STOP all purchasing immediately. You are adding stock to a brand that is not selling.",
+    flags:["vSalesDead","vAgedHigh","vPOExists","vPOOverloaded"],
+    actions:[
+      { icon:"🛑", text:"Halt ALL open purchase orders for this brand immediately", priority:"CRITICAL" },
+      { icon:"📞", text:"Contact suppliers to defer or cancel outstanding shipments", priority:"CRITICAL" },
+      { icon:"🎯", text:"Launch emergency clearance campaign — promotions, bundles, or price reduction", priority:"URGENT" },
+      { icon:"📋", text:"Review demand forecast and sales team accountability for this brand", priority:"HIGH" },
+    ]
+  },
+  {
+    id:"2", tier:"CRITICAL", num:"2",
+    en:"Dead write off",
+    short:"No sales + old stock dominates + ITR collapsed",
+    explanation:"There are no current sales, Y1+Y2+ stock exceeds 15% of total inventory (rejected aging profile), and inventory turnover ratio has fallen below the minimum threshold. The stock is functionally obsolete.",
+    user_tip:"🔴 This stock is likely unsellable at full price. A formal write-off process should begin.",
+    flags:["vSalesDead","vAgedYPctRed","vITRLow"],
+    actions:[
+      { icon:"📝", text:"Initiate formal write-off or impairment review with finance and management", priority:"CRITICAL" },
+      { icon:"💰", text:"Explore salvage value — liquidation, scrap, or return to supplier", priority:"URGENT" },
+      { icon:"🚫", text:"Block any future purchasing until write-off is resolved", priority:"BLOCK" },
+    ]
+  },
+  {
+    id:"3", tier:"CRITICAL", num:"3",
+    en:"Dead flush stock",
+    short:"No sales + stock exceeds 1.25x annual demand",
+    explanation:"Sales are zero while total aged stock exceeds 125% of the annual demand average. No purchase order pressure is present, but the inventory level is unsustainably high for a non-moving brand.",
+    user_tip:"🔴 Stock is piling up with no sales movement. Urgent clearance action is needed.",
+    flags:["vSalesDead","vAgedHigh"],
+    actions:[
+      { icon:"🎯", text:"Activate promotional campaigns — discounting, cross-selling, or bundle offers", priority:"CRITICAL" },
+      { icon:"🔄", text:"Explore stock return or swap agreements with the supplier", priority:"HIGH" },
+      { icon:"📦", text:"Consider redistributing stock to branches with higher demand", priority:"HIGH" },
+    ]
+  },
+  {
+    id:"4", tier:"CRITICAL", num:"4",
+    en:"Critical cancel POs",
+    short:"Falling sales + overstock + POs overloaded + ITR low",
+    explanation:"Demand is declining versus the prior year, inventory is already above 125% of annual average, open purchase orders are compounding the exposure past safe thresholds, and inventory turnover is weak. All four risk factors are present simultaneously.",
+    user_tip:"🔴 Everything is going wrong at once — sales down, stock up, more stock coming, slow turnover. Cancel POs now.",
+    flags:["vSalesFalling","vAgedHigh","vPOOverloaded","vITRLow"],
+    actions:[
+      { icon:"🛑", text:"Cancel or defer all open purchase orders immediately", priority:"CRITICAL" },
+      { icon:"📉", text:"Reassess annual sales forecast — the current trajectory is unsustainable", priority:"CRITICAL" },
+      { icon:"🎯", text:"Focus sales team on this brand with specific targets and incentives", priority:"URGENT" },
+      { icon:"💹", text:"Review pricing strategy — may need to reduce price to stimulate demand", priority:"HIGH" },
+    ]
+  },
+  {
+    id:"5", tier:"CRITICAL", num:"5",
+    en:"Critical flush stock",
+    short:"Falling sales + DIO over 90 days + ITR below 4",
+    explanation:"Sales are declining, days inventory outstanding exceeds 90 days (the hard maximum), and inventory turnover ratio is below 4 — indicating severely inefficient inventory. The stock is moving far too slowly relative to the capital tied up in it.",
+    user_tip:"🔴 Stock is taking 3+ months to move. This is financially damaging — clear it urgently.",
+    flags:["vSalesFalling","vAgedHigh","vDIOCritical","vITRLow"],
+    actions:[
+      { icon:"🔥", text:"Prioritise aggressive stock reduction — promotions, flash sales, or channel partners", priority:"CRITICAL" },
+      { icon:"📊", text:"Conduct root cause analysis — pricing, visibility, or demand shift?", priority:"URGENT" },
+      { icon:"🤝", text:"Engage key customers with special offers on this specific brand", priority:"HIGH" },
+    ]
+  },
+  {
+    id:"6", tier:"HIGH", num:"6",
+    en:"Overstock push Y1+",
+    short:"Growing sales but old stock (Y1/Y2+) exceeds 15%",
+    explanation:"Sales are genuinely growing — YTD has already cleared the full prior year. However, aged stock is above 125% of annual average AND the Y1+Y2+ bucket exceeds 15% (rejected). Growth is masking an old stock problem underneath.",
+    user_tip:"🟠 Good sales momentum — but old stock is piling up beneath the surface. Focus on Y1+ SKUs first.",
+    flags:["vSalesGrowing","vAgedHigh","vAgedYPctRed"],
+    actions:[
+      { icon:"🎯", text:"Direct sales promotions specifically toward Y1 and Y2+ SKUs before ordering fresh stock", priority:"HIGH" },
+      { icon:"📦", text:"Create a separate Y1+ clearance campaign — bundles, discounts, featured placement", priority:"HIGH" },
+      { icon:"⏸️", text:"Pause new PO placements until Y1+ ratio falls below 15%", priority:"MODERATE" },
+    ]
+  },
+  {
+    id:"7", tier:"HIGH", num:"7",
+    en:"Overstock push sales",
+    short:"Growing sales but total stock exceeds avg with aging warning",
+    explanation:"Sales exceed the full prior year (genuine growth), but total aged stock is above 125% of annual average and Y1+Y2+ ratio is in the warning zone (5–15%). Growth is healthy but inventory volume is getting ahead of demand.",
+    user_tip:"🟠 Sales are strong but you're accumulating too much stock overall. Accelerate the older buckets.",
+    flags:["vSalesGrowing","vAgedHigh","vAgedYPctAmber"],
+    actions:[
+      { icon:"🚀", text:"Accelerate sell-through velocity on aged buckets through targeted commercial activity", priority:"HIGH" },
+      { icon:"📋", text:"Review upcoming PO quantities — consider reducing next order by 20-30%", priority:"MODERATE" },
+      { icon:"📊", text:"Monitor TAged Y% weekly to ensure it stays below 15%", priority:"MODERATE" },
+    ]
+  },
+  {
+    id:"8", tier:"HIGH", num:"8",
+    en:"High stock accelerate",
+    short:"Growing sales + high stock but aging profile is clean",
+    explanation:"YTD has cleared the full prior year (exceptional growth) and stock is elevated above 125% of annual average — but the aging profile is clean (Y1+Y2+ below 5%). This is a volume issue, not an age quality issue. Stock is high but fresh.",
+    user_tip:"🟠 Great sales — stock is high but well-aged. Just keep the momentum going to absorb it.",
+    flags:["vSalesGrowing","vAgedHigh"],
+    actions:[
+      { icon:"⚡", text:"Accelerate sales pace to absorb the elevated stock level faster", priority:"HIGH" },
+      { icon:"✅", text:"No liquidation urgency — aging profile is healthy, maintain quality", priority:"MODERATE" },
+      { icon:"📋", text:"Review next PO timing — delay slightly to allow stock to reduce", priority:"MODERATE" },
+    ]
+  },
+  {
+    id:"9", tier:"HIGH", num:"9",
+    en:"Pacing watch Y1+",
+    short:"Pacing better than PYTD but Y1/Y2+ exceeds 15%",
+    explanation:"Sales YTD are ahead of the same period last year (pacing well) but have not yet cleared the full prior year. Meanwhile Y1+Y2+ aging exceeds 15% — the aging profile is rejected. Sales progress does not offset the old stock risk.",
+    user_tip:"🟠 Sales improving but old stock is the real problem here. Focus commercial energy on Y1+ rotation.",
+    flags:["vSalesNormal","vAgedHigh","vAgedYPctRed"],
+    actions:[
+      { icon:"🎯", text:"Redirect sales focus to Y1 and Y2+ SKUs — they need to move before more fresh stock arrives", priority:"HIGH" },
+      { icon:"📞", text:"Discuss with commercial team whether a targeted campaign is feasible", priority:"HIGH" },
+      { icon:"⏸️", text:"Do not place new POs until Y1+Y2+ ratio is below 10%", priority:"MODERATE" },
+    ]
+  },
+  {
+    id:"10", tier:"HIGH", num:"10",
+    en:"Declining cancel POs",
+    short:"Sales falling + overstock + POs over-committed",
+    explanation:"Sales are below the same period last year, aged stock already exceeds 125% of annual average, and open purchase orders are pushing total exposure above safe thresholds. Adding more supply to a declining demand situation with existing overstock.",
+    user_tip:"🟠 Sales are down and you're still ordering more. Cancel those POs before the position worsens.",
+    flags:["vSalesFalling","vAgedHigh","vPOOverloaded"],
+    actions:[
+      { icon:"🛑", text:"Cancel or defer open purchase orders to stop the exposure from growing", priority:"HIGH" },
+      { icon:"📊", text:"Investigate the cause of sales decline — market shift, competition, or pricing?", priority:"HIGH" },
+      { icon:"🎯", text:"Launch targeted sales campaigns to reverse the declining trend", priority:"MODERATE" },
+    ]
+  },
+  {
+    id:"11", tier:"HIGH", num:"11",
+    en:"Declining flush stock",
+    short:"Sales falling + overstock + Y1/Y2+ exceeds 15%",
+    explanation:"Sales are declining versus last year AND Y1+Y2+ aging exceeds 15% (rejected profile). The combination of falling demand and deteriorating aging creates a compounding risk — stock that is already old will become even older as sales slow.",
+    user_tip:"🟠 Sales dropping + old stock growing = urgent action needed before it becomes write-off territory.",
+    flags:["vSalesFalling","vAgedHigh","vAgedYPctRed"],
+    actions:[
+      { icon:"🔥", text:"Launch urgent Y1+ clearance — cannot wait for normal sell-through", priority:"HIGH" },
+      { icon:"💰", text:"Consider discounted pricing or bundle offers to accelerate movement", priority:"HIGH" },
+      { icon:"📦", text:"Explore inter-branch transfers to higher-demand locations", priority:"MODERATE" },
+    ]
+  },
+  {
+    id:"12", tier:"HIGH", num:"12",
+    en:"Declining reduce stock",
+    short:"Sales falling + stock exceeds 1.25x annual average",
+    explanation:"Sales are below the same period last year and total aged stock exceeds 125% of annual average demand. The aging profile is not yet critical but volume is excessive for the current demand trajectory.",
+    user_tip:"🟠 Sales going down, stock going up. Reduce inventory before the situation escalates.",
+    flags:["vSalesFalling","vAgedHigh"],
+    actions:[
+      { icon:"📉", text:"Reduce stock level through targeted sales push and suspension of new purchasing", priority:"HIGH" },
+      { icon:"🔄", text:"Review supplier relationship — can quantities on upcoming orders be reduced?", priority:"HIGH" },
+      { icon:"📊", text:"Monitor weekly to ensure the trend does not worsen to Critical tier", priority:"MODERATE" },
+    ]
+  },
+  {
+    id:"13", tier:"MODERATE", num:"13",
+    en:"Pacing reduce stock",
+    short:"Pacing well but stock elevated with aging warning",
+    explanation:"Sales are ahead of the same period last year (pacing) but stock is above 125% of annual average AND Y1+Y2+ is in the warning zone (5–15%). Performance is acceptable but the aging mix needs attention before it reaches the rejected threshold.",
+    user_tip:"🟡 Sales OK — but aging stock is building up. Keep an eye on the Y1+ bucket and manage stock down.",
+    flags:["vSalesNormal","vAgedHigh","vAgedYPctAmber"],
+    actions:[
+      { icon:"📊", text:"Monitor TAged Y% weekly — if it exceeds 15% escalate to High tier action", priority:"MODERATE" },
+      { icon:"📋", text:"Moderate any new purchasing to allow current stock levels to reduce", priority:"MODERATE" },
+      { icon:"🎯", text:"Include older SKUs in upcoming promotions to improve aging mix", priority:"LOW" },
+    ]
+  },
+  {
+    id:"14", tier:"MODERATE", num:"14",
+    en:"Pacing manage stock",
+    short:"Pacing well + high stock but aging profile clean",
+    explanation:"Sales are pacing better than the same period last year and the aging profile is clean (below 5%). However total stock exceeds 125% of annual average — it's a volume concern, not an age quality concern. Sales are heading in the right direction.",
+    user_tip:"🟡 Good sales trend, clean aged stock — just manage overall volume and you're fine.",
+    flags:["vSalesNormal","vAgedHigh"],
+    actions:[
+      { icon:"⚖️", text:"Continue current sales momentum while managing total stock volume", priority:"MODERATE" },
+      { icon:"📋", text:"Review next PO size — consider modest reduction to bring stock toward the 1.0x avg level", priority:"LOW" },
+      { icon:"✅", text:"No urgency — aging profile is healthy, standard management is sufficient", priority:"LOW" },
+    ]
+  },
+  {
+    id:"15", tier:"MODERATE", num:"15",
+    en:"Weak review POs",
+    short:"Sales falling + POs getting ahead of declining demand",
+    explanation:"Sales are below the same period last year (declining) and open purchase orders are pushing total exposure above safe thresholds — even though overall aged stock is not yet critical. The concern is that the PO pipeline will create future overstock.",
+    user_tip:"🟡 Sales dipping and you're still ordering. Review and potentially reduce open POs before it becomes a problem.",
+    flags:["vSalesFalling","vPOOverloaded"],
+    actions:[
+      { icon:"🔍", text:"Review all open POs and assess whether quantities should be reduced", priority:"MODERATE" },
+      { icon:"📞", text:"Discuss with procurement — can lead times be extended to match adjusted demand?", priority:"MODERATE" },
+      { icon:"📊", text:"Track weekly sales trend — if decline continues, escalate to cancel POs", priority:"MODERATE" },
+    ]
+  },
+  {
+    id:"16", tier:"MODERATE", num:"16",
+    en:"Moderate push sales",
+    short:"Sales declining + ITR below threshold",
+    explanation:"Sales are falling below the same period last year AND inventory turnover ratio is below 4 (minimum threshold). Stock is not cycling efficiently. The brand needs commercial demand stimulus to reverse both the sales decline and the efficiency deterioration.",
+    user_tip:"🟡 Sales slipping and stock moving slowly. Push commercial activity to get this brand moving again.",
+    flags:["vSalesFalling","vITRLow"],
+    actions:[
+      { icon:"🚀", text:"Increase commercial activity — promotions, customer outreach, visibility improvement", priority:"MODERATE" },
+      { icon:"💹", text:"Review pricing — is the brand competitively positioned in the market?", priority:"MODERATE" },
+      { icon:"🤝", text:"Engage top customers with specific offers on this brand", priority:"LOW" },
+    ]
+  },
+  {
+    id:"17", tier:"MODERATE", num:"17",
+    en:"Growing cap orders",
+    short:"Strong growth but PO exposure exceeds safe limits",
+    explanation:"Sales have genuinely cleared the full prior year (exceptional growth) — which is excellent. However, total exposure (POs + YTD + Aged) exceeds 125% of annual average AND 150% of prior year. Growth is strong but purchasing is getting ahead of even the elevated demand.",
+    user_tip:"🟡 Great sales — but you're ordering too much relative to even this strong demand. Cap orders.",
+    flags:["vSalesGrowing","vPOOverloaded"],
+    actions:[
+      { icon:"⏸️", text:"Cap new purchase orders until current pipeline is absorbed by sales", priority:"MODERATE" },
+      { icon:"📊", text:"Recalculate demand forecast incorporating current growth rate before next order", priority:"MODERATE" },
+      { icon:"✅", text:"Maintain current sales momentum — the underlying performance is excellent", priority:"LOW" },
+    ]
+  },
+  {
+    id:"18", tier:"MODERATE", num:"18",
+    en:"Pacing cap orders",
+    short:"Pacing better than prior period but POs over-committed",
+    explanation:"Sales are pacing ahead of the same period last year but below the full prior year. Meanwhile total supply exposure exceeds the safe thresholds. Demand is improving but the PO pipeline is getting ahead of the current demand trajectory.",
+    user_tip:"🟡 Pacing nicely but over-ordered. Let the pipeline absorb before placing more.",
+    flags:["vSalesNormal","vPOOverloaded"],
+    actions:[
+      { icon:"⏸️", text:"Pause new order placement until PO + stock exposure normalises", priority:"MODERATE" },
+      { icon:"📋", text:"Review open PO quantities — consider reducing the next shipment", priority:"MODERATE" },
+      { icon:"📈", text:"If sales pace continues to improve, revisit procurement plan next month", priority:"LOW" },
+    ]
+  },
+  {
+    id:"19", tier:"MODERATE", num:"19",
+    en:"Good monitor DIO",
+    short:"Growing sales but DIO drifting into watch zone (50–90)",
+    explanation:"Sales are genuinely growing (cleared full prior year) and aged stock is within acceptable range. However Days Inventory Outstanding has drifted into the watch zone (50–90 days) — above the acceptable threshold of 50 days. Everything is fine but worth monitoring.",
+    user_tip:"🟡 Sales great, stock clean — but stock is sitting a bit long. Keep an eye on DIO.",
+    flags:["vSalesGrowing","vDIOMid"],
+    actions:[
+      { icon:"📊", text:"Monitor DIO weekly — if it exceeds 90 days escalate to Critical efficiency action", priority:"MODERATE" },
+      { icon:"✅", text:"Continue current growth strategy — underlying performance is strong", priority:"LOW" },
+      { icon:"📋", text:"Consider whether next order timing should be slightly delayed to reduce DIO", priority:"LOW" },
+    ]
+  },
+  {
+    id:"20", tier:"MODERATE", num:"20",
+    en:"Pacing monitor DIO",
+    short:"Pacing well but DIO elevated into watch zone",
+    explanation:"Sales are pacing better than the same period last year with clean aging profile. However DIO has entered the watch zone (50–90 days). The business is moving in the right direction but inventory productivity needs attention.",
+    user_tip:"🟡 On track — but stock isn't moving as fast as it should. Watch the days figure closely.",
+    flags:["vSalesNormal","vDIOMid"],
+    actions:[
+      { icon:"📊", text:"Track DIO weekly and flag if it approaches 90 days", priority:"MODERATE" },
+      { icon:"🎯", text:"Consider targeted promotions to accelerate sell-through and reduce DIO", priority:"LOW" },
+      { icon:"📋", text:"Avoid placing new orders until DIO returns below 50 days", priority:"LOW" },
+    ]
+  },
+  {
+    id:"21", tier:"MODERATE", num:"21",
+    en:"Low stock hold PO",
+    short:"Stock lean but sales are falling — wait before replenishing",
+    explanation:"Stock is below 75% of annual average demand (replenishment would normally be warranted) but sales are currently declining versus last year. Placing a purchase order now risks creating overstock if the declining trend continues.",
+    user_tip:"🟡 Stock is getting low but sales are slipping. Don't order yet — wait to see if the trend reverses.",
+    flags:["vSalesFalling","vStockLow"],
+    actions:[
+      { icon:"⏳", text:"Hold purchase order placement — monitor sales for 2-4 weeks before committing", priority:"MODERATE" },
+      { icon:"📊", text:"Investigate the cause of sales decline before deciding on replenishment", priority:"MODERATE" },
+      { icon:"⚡", text:"If sales recover within the month, issue a small bridging order only", priority:"LOW" },
+    ]
+  },
+  {
+    id:"22", tier:"HEALTHY", num:"22",
+    en:"Low stock place PO",
+    short:"Stock lean + strong genuine growth = buy signal",
+    explanation:"Stock is below 75% of annual average demand AND sales have genuinely outperformed the full prior year. This is the clearest buy signal in the model — proven demand has been established and inventory needs replenishment to avoid a stockout.",
+    user_tip:"🟢 Everything points to buying. Stock is low, sales are strong. Place the order.",
+    flags:["vSalesGrowing","vPlacePO"],
+    actions:[
+      { icon:"🛒", text:"Place a purchase order promptly — stockout risk is real with current demand pace", priority:"HIGH" },
+      { icon:"📊", text:"Calculate order quantity based on Avg.YrSales × lead time factor", priority:"MODERATE" },
+      { icon:"✅", text:"This is the highest-confidence replenishment signal in the engine", priority:"LOW" },
+    ]
+  },
+  {
+    id:"23", tier:"HEALTHY", num:"23",
+    en:"Lean stock consider PO",
+    short:"Stock lean + pacing well = cautious buy signal",
+    explanation:"Stock is below 75% of annual average demand and sales are pacing better than the same period last year — though not yet above the full prior year total. Demand is improving and a measured replenishment is warranted, but with conservative quantities.",
+    user_tip:"🟢 Stock getting low and sales looking good — consider a moderate order.",
+    flags:["vSalesNormal","vPlacePO"],
+    actions:[
+      { icon:"🛒", text:"Consider a measured purchase order — order conservatively (60-70% of standard quantity)", priority:"MODERATE" },
+      { icon:"📊", text:"Review sales trend over the next 2 weeks before finalising order size", priority:"LOW" },
+      { icon:"✅", text:"Monitor after receipt — if sales continue to improve, a follow-up order may be needed", priority:"LOW" },
+    ]
+  },
+  {
+    id:"24", tier:"HEALTHY", num:"24",
+    en:"Good procure carefully",
+    short:"Exceptional growth + clean inventory + efficient DIO",
+    explanation:"All indicators are in the healthy range. Sales have cleared the full prior year (genuine growth), aged stock is below 125% of annual average, aging profile is clean, DIO is within the 15–50 day range, and ITR is above 4. This is the model's ideal state.",
+    user_tip:"🟢 Everything looks great. Keep doing what you're doing — just buy thoughtfully.",
+    flags:["vSalesGrowing","vDIOHealthy"],
+    actions:[
+      { icon:"✅", text:"Maintain current inventory and procurement strategy — no changes needed", priority:"LOW" },
+      { icon:"📋", text:"Procure with standard discipline — use historical demand as the anchor for order sizing", priority:"LOW" },
+      { icon:"📈", text:"Consider whether this brand deserves increased shelf space or marketing investment", priority:"LOW" },
+    ]
+  },
+  {
+    id:"25", tier:"HEALTHY", num:"25",
+    en:"Pacing on track",
+    short:"Pacing better than prior period with no risk flags",
+    explanation:"Sales are ahead of the same period last year with no red flags on any dimension — no overstock, no PO overload, no ITR concern. The brand is performing to expectation and tracking toward a positive year-end.",
+    user_tip:"🟢 On track, no problems. Standard operating procedure.",
+    flags:["vSalesNormal"],
+    actions:[
+      { icon:"✅", text:"Continue current approach — no immediate action required", priority:"LOW" },
+      { icon:"📊", text:"Monitor monthly to ensure trajectory remains positive", priority:"LOW" },
+    ]
+  },
+  {
+    id:"26", tier:"HEALTHY", num:"26",
+    en:"Stable maintain",
+    short:"No risk flags on any dimension — steady state",
+    explanation:"The brand has active sales with no flags triggered on any dimension. Inventory is not excessive, POs are not overloaded, ITR is above the minimum, and DIO is acceptable. The brand is in equilibrium.",
+    user_tip:"🟢 Stable and balanced. Just maintain the current strategy.",
+    flags:[],
+    actions:[
+      { icon:"✅", text:"Maintain current inventory and procurement strategy", priority:"LOW" },
+      { icon:"📈", text:"Consider whether growth opportunities exist to move this to the Growing tier", priority:"LOW" },
+    ]
+  },
+];
+ 
+const FLAG_GROUPS = [
+  { name:"SALES TREND FLAGS", color:"#2E86C1", flags:[
+    { name:"vSalesGrowing",   icon:"⏫", cond:"YTD > PYTD  AND  YTD > full PY",        thresh:"YTD > PY" },
+    { name:"vSalesNormal",    icon:"🔼", cond:"YTD > PYTD  AND  YTD < full PY",        thresh:"YTD < PY" },
+    { name:"vSalesFalling",   icon:"🔽", cond:"YTD < PYTD  AND  YTD > 0",             thresh:"YTD < PYTD" },
+    { name:"vSalesDead",      icon:"⏬", cond:"ISBLANK(YTD)  OR  YTD ≤ 0",            thresh:"YTD = 0" },
+    { name:"vNoSalesHistory", icon:"❌", cond:"vSalesDead AND SalesPY also dead",      thresh:"Both = 0" },
+  ]},
+  { name:"AGED STOCK FLAGS", color:"#E67E22", flags:[
+    { name:"vAgedExists",     icon:"📦", cond:"TotalAged > 0",                          thresh:"> 0" },
+    { name:"vAgedHigh",       icon:"⚠️", cond:"TotalAged > Avg.YrSales × 1.25",         thresh:"> 1.25×" },
+    { name:"vAgedYPctRed",    icon:"🔴", cond:"TAged Y% > 15%",                         thresh:"> 15%" },
+    { name:"vAgedYPctAmber",  icon:"🟡", cond:"TAged Y% between 5% and 15%",            thresh:"5–15%" },
+    { name:"vAgedProfileBad", icon:"⛔", cond:"vAgedYPctRed  OR  vAgedYPctAmber",       thresh:"≥ 5%" },
+  ]},
+  { name:"PO & REPLENISHMENT FLAGS", color:"#2ECC71", flags:[
+    { name:"vPOExists",       icon:"📋", cond:"TotalPOs > 0  AND  NOT BLANK",           thresh:"> 0" },
+    { name:"vPOOverloaded",   icon:"💥", cond:"Exposure > 1.25×Avg  AND  > 1.5×PY",    thresh:"1.25×Avg" },
+    { name:"vStockLow",       icon:"📉", cond:"TotalAged < Avg.YrSales × 0.75",         thresh:"< 0.75×" },
+    { name:"vPOCoversGap",    icon:"✔️", cond:"POs exist AND Aged+POs ≥ 0.75×Avg",     thresh:"≥ 0.75×" },
+    { name:"vPlacePO",        icon:"🛒", cond:"StockLow AND NOT Covered AND NOT High",  thresh:"All 3 OK" },
+  ]},
+  { name:"EFFICIENCY FLAGS", color:"#F1C40F", flags:[
+    { name:"vDIOCritical",    icon:"🚨", cond:"DIO > 90 days",                          thresh:"> 90d" },
+    { name:"vDIOMid",         icon:"⚡", cond:"50 < DIO ≤ 90 days",                    thresh:"50–90d" },
+    { name:"vDIOHealthy",     icon:"✅", cond:"15 ≤ DIO ≤ 50 days",                    thresh:"15–50d" },
+    { name:"vITRLow",         icon:"🐢", cond:"ITR < 4",                                thresh:"< 4" },
+  ]},
+];
+ 
+const THRESHOLDS = [
+  { title:"Aged Stock Thresholds", items:[
+    { label:"Overstock trigger",    val:"TotalAged > 1.25× AvgYrSales", color:"#E74C3C" },
+    { label:"Replenish trigger",    val:"TotalAged < 0.75× AvgYrSales", color:"#2ECC71" },
+    { label:"Y1+Y2+ Rejected",      val:"TAged Y% > 15%",               color:"#E74C3C" },
+    { label:"Y1+Y2+ Warning",       val:"TAged Y% 5–15%",               color:"#F1C40F" },
+    { label:"Y1+Y2+ Accepted",      val:"TAged Y% < 5%",                color:"#2ECC71" },
+  ]},
+  { title:"DIO Thresholds", items:[
+    { label:"Hard Maximum",         val:"DIO > 90 days",                 color:"#E74C3C" },
+    { label:"Watch Zone",           val:"50 < DIO ≤ 90 days",           color:"#F1C40F" },
+    { label:"Acceptable Range",     val:"15 ≤ DIO ≤ 50 days",           color:"#2ECC71" },
+    { label:"Minimum Target",       val:"DIO ≥ 15 days",                color:"#2E86C1" },
+  ]},
+  { title:"ITR & PO Thresholds", items:[
+    { label:"ITR Minimum",          val:"ITR ≥ 4",                       color:"#2ECC71" },
+    { label:"ITR Low (flag)",       val:"ITR < 4",                       color:"#E74C3C" },
+    { label:"PO Overload (vs Avg)", val:"Exposure > 1.25× AvgYrSales",  color:"#E74C3C" },
+    { label:"PO Overload (vs PY)",  val:"Exposure > 1.50× SalesPY",     color:"#E74C3C" },
+    { label:"PO Covers Gap",        val:"Aged + POs ≥ 0.75× AvgYrSales",color:"#2ECC71" },
+  ]},
+  { title:"Sales Trend Classification", items:[
+    { label:"Growing (exceptional)", val:"YTD > PYTD  AND  YTD > full PY", color:"#2ECC71" },
+    { label:"Normal (pacing)",       val:"YTD > PYTD  AND  YTD < full PY", color:"#2E86C1" },
+    { label:"Falling (declining)",   val:"YTD < PYTD  AND  YTD > 0",       color:"#F1C40F" },
+    { label:"Dead (no sales)",       val:"YTD = 0 or BLANK",               color:"#E74C3C" },
+    { label:"No History (special)",  val:"Dead AND SalesPY also 0",         color:"#7F8C8D" },
+  ]},
+];
+ 
+// ═══════════════════════════════════════════════════
+// RENDER FUNCTIONS
+// ═══════════════════════════════════════════════════
+function renderOverview() {
+  const grid = document.getElementById('overview-grid');
+  const tierOrder = ['SPECIAL','CRITICAL','HIGH','MODERATE','HEALTHY'];
+  grid.innerHTML = '';
+  tierOrder.forEach(tierKey => {
+    const tier = TIERS[tierKey];
+    const tierSignals = SIGNALS.filter(s => s.tier === tierKey);
+    const col = document.createElement('div');
+    col.className = 'tier-column';
+    col.style.borderColor = tier.color;
+    col.style.background = tier.bg;
+    col.innerHTML = `
+      <div class="tier-header" style="background:${tier.color}">
+        <div class="tier-label" style="color:#0D1B2A">${tier.label}</div>
+        <div class="tier-count" style="color:#0D1B2A">${tierSignals.length} signal${tierSignals.length!==1?'s':''}</div>
+        <div class="tier-meaning" style="color:#0D1B2A">${tier.meaning}</div>
+      </div>`;
+    tierSignals.forEach(sig => {
+      const card = document.createElement('div');
+      card.className = 'signal-card';
+      card.style.borderColor = tier.color + '55';
+      card.style.background = '#0D1B2A';
+      card.onclick = () => openModal(sig.id);
+      const flagIcons = sig.flags.slice(0,3).map(f => {
+        const fi = FLAG_ICONS[f];
+        return fi ? `<span class="flag-icon" style="color:${tier.color}">${fi.icon}</span>` : '';
+      }).join('');
+      card.innerHTML = `
+        <div class="signal-card-inner">
+          <div class="signal-num" style="background:${tier.color};color:#0D1B2A">${sig.num}</div>
+          <div class="signal-content">
+            <div class="signal-en" style="color:${tier.color}">${sig.en}</div>
+            <div class="signal-short">${sig.short}</div>
+            <div class="signal-flags">${flagIcons}</div>
+          </div>
+        </div>`;
+      col.appendChild(card);
+    });
+    grid.appendChild(col);
+  });
+}
+ 
+function renderSignalsList() {
+  const list = document.getElementById('signals-list');
+  list.innerHTML = '';
+  const priorityColor = { CRITICAL:'#E74C3C', URGENT:'#E67E22', HIGH:'#F1C40F', MODERATE:'#2E86C1', LOW:'#7F8C8D', BLOCK:'#E74C3C' };
+  SIGNALS.forEach(sig => {
+    const tier = TIERS[sig.tier];
+    const row = document.createElement('div');
+    row.className = 'signal-row';
+    row.dataset.tier = sig.tier;
+    row.dataset.search = (sig.en + ' ' + sig.short + ' ' + sig.flags.join(' ')).toLowerCase();
+    row.style.cssText = `display:flex;align-items:stretch;border-radius:8px;border:1px solid ${tier.color}33;background:${tier.bg};cursor:pointer;transition:all 0.15s;overflow:hidden;`;
+    row.onmouseenter = () => row.style.borderColor = tier.color;
+    row.onmouseleave = () => row.style.borderColor = tier.color+'33';
+    row.onclick = () => openModal(sig.id);
+    const flagIcons = sig.flags.map(f => {
+      const fi = FLAG_ICONS[f];
+      return fi ? `<span style="font-size:11px;background:rgba(0,0,0,0.3);padding:1px 4px;border-radius:3px;font-family:var(--font-mono);font-weight:600;color:${tier.color}">${fi.icon} ${fi.label}</span>` : '';
+    }).join('');
+    const firstAction = sig.actions[0];
+    row.innerHTML = `
+      <div style="width:48px;background:${tier.color};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;font-family:var(--font-mono);color:#0D1B2A;flex-shrink:0">${sig.num}</div>
+      <div style="padding:8px 12px;flex:2;border-right:1px solid #2A3F5F;">
+        <div style="font-size:13px;font-weight:700;color:${tier.color};margin-bottom:2px;">${sig.en}</div>
+        <div style="font-size:11px;color:#A8B8CC;">${sig.short}</div>
+        <div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap;">${flagIcons}</div>
+      </div>
+      <div style="padding:8px 12px;flex:2;border-right:1px solid #2A3F5F;">
+        <div style="font-size:10px;color:#7F8C8D;font-family:var(--font-mono);margin-bottom:4px;">USER TIP</div>
+        <div style="font-size:11px;color:#D0DCE8;line-height:1.4;">${sig.user_tip}</div>
+      </div>
+      <div style="padding:8px 12px;flex:2;">
+        <div style="font-size:10px;color:#7F8C8D;font-family:var(--font-mono);margin-bottom:4px;">TOP ACTION</div>
+        <div style="font-size:11px;color:#D0DCE8;line-height:1.4;">${firstAction ? firstAction.icon + ' ' + firstAction.text : '—'}</div>
+      </div>
+      <div style="width:32px;display:flex;align-items:center;justify-content:center;color:#2A3F5F;font-size:16px;flex-shrink:0">›</div>`;
+    list.appendChild(row);
+  });
+}
+ 
+function renderFlags() {
+  const grid = document.getElementById('flags-grid');
+  grid.innerHTML = '';
+  FLAG_GROUPS.forEach(grp => {
+    const card = document.createElement('div');
+    card.className = 'flag-group-card';
+    card.style.borderColor = grp.color + '44';
+    card.style.background = '#162336';
+    card.innerHTML = `<div class="flag-group-header" style="background:${grp.color};color:#0D1B2A">${grp.name}</div>`;
+    grp.flags.forEach(f => {
+      const row = document.createElement('div');
+      row.className = 'flag-row';
+      row.innerHTML = `
+        <div class="flag-row-icon">${f.icon}</div>
+        <div class="flag-row-name" style="color:${grp.color}">${f.name}</div>
+        <div class="flag-row-cond">${f.cond}</div>
+        <div class="flag-row-thresh" style="background:${grp.color}22;color:${grp.color};border:1px solid ${grp.color}44">${f.thresh}</div>`;
+      card.appendChild(row);
+    });
+    grid.appendChild(card);
+  });
+}
+ 
+function renderThresholds() {
+  const layout = document.getElementById('thresholds-layout');
+  layout.innerHTML = '';
+  THRESHOLDS.forEach(group => {
+    const card = document.createElement('div');
+    card.className = 'threshold-card';
+    card.innerHTML = `<div class="threshold-header">${group.title}</div>`;
+    group.items.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'threshold-row';
+      row.innerHTML = `
+        <span class="threshold-label">${item.label}</span>
+        <span class="threshold-val" style="background:${item.color}22;color:${item.color};border:1px solid ${item.color}44">${item.val}</span>`;
+      card.appendChild(row);
+    });
+    layout.appendChild(card);
+  });
+}
+ 
+// ═══════════════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════════════
+function openModal(id) {
+  const sig = SIGNALS.find(s => s.id === id);
+  if (!sig) return;
+  const tier = TIERS[sig.tier];
+  const priorityColor = { CRITICAL:'#E74C3C', URGENT:'#E67E22', HIGH:'#F1C40F', MODERATE:'#2E86C1', LOW:'#7F8C8D', BLOCK:'#E74C3C' };
+ 
+  document.getElementById('modal-box').style.background = tier.bg;
+  document.getElementById('modal-box').style.borderColor = tier.color;
+  document.getElementById('modal-header').style.background = tier.bg;
+  document.getElementById('modal-header').style.borderColor = tier.color + '44';
+  document.getElementById('modal-num').textContent = sig.num;
+  document.getElementById('modal-num').style.background = tier.color;
+  document.getElementById('modal-num').style.color = '#0D1B2A';
+  document.getElementById('modal-title').textContent = sig.en;
+  document.getElementById('modal-title').style.color = tier.color;
+  document.getElementById('modal-severity').textContent = tier.label + '  ·  ' + tier.meaning;
+ 
+  const flagsHtml = sig.flags.length > 0 ? `
+    <div class="modal-flags-grid">
+      ${sig.flags.map(f => {
+        const fi = FLAG_ICONS[f];
+        return `<div class="modal-flag-item">
+          <div class="modal-flag-icon">${fi ? fi.icon : '🔹'}</div>
+          <div>
+            <div class="modal-flag-name" style="color:${tier.color}">${f}</div>
+            <div class="modal-flag-cond">${fi ? fi.label : f}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>` : '<div style="color:var(--sub);font-size:12px;">No specific flags — catch-all condition</div>';
+ 
+  const actionsHtml = sig.actions.map(a => `
+    <div class="action-item">
+      <div class="action-icon">${a.icon}</div>
+      <div style="flex:1;font-size:12px;line-height:1.4;">${a.text}</div>
+      <span class="priority-badge" style="background:${priorityColor[a.priority] || '#2A3F5F'}22;color:${priorityColor[a.priority] || '#7F8C8D'};border:1px solid ${priorityColor[a.priority] || '#2A3F5F'}44">${a.priority}</span>
+    </div>`).join('');
+ 
+  document.getElementById('modal-body').innerHTML = `
+    <div class="modal-section">
+      <div class="modal-section-title">📋 DETAILED EXPLANATION</div>
+      <p class="modal-explanation">${sig.explanation}</p>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">💡 SIMPLE USER TIP</div>
+      <div class="modal-user-tip" style="background:${tier.color}15;border-color:${tier.color};color:#D0DCE8">${sig.user_tip}</div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">🚩 FLAG CONDITIONS TRIGGERED</div>
+      ${flagsHtml}
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">⚡ SUGGESTED ACTIONS</div>
+      <div class="actions-list">${actionsHtml}</div>
+    </div>`;
+ 
+  document.getElementById('modal-overlay').classList.add('open');
+}
+ 
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+function closeModalOnBg(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+}
+ 
+// ═══════════════════════════════════════════════════
+// NAVIGATION & FILTERS
+// ═══════════════════════════════════════════════════
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+ 
+const activeFilters = new Set(['SPECIAL','CRITICAL','HIGH','MODERATE','HEALTHY']);
+function toggleFilter(tier) {
+  const btn = event.target;
+  if (activeFilters.has(tier)) {
+    if (activeFilters.size === 1) return;
+    activeFilters.delete(tier);
+    btn.classList.remove('active');
+  } else {
+    activeFilters.add(tier);
+    btn.classList.add('active');
+  }
+  filterSignals();
+}
+function filterSignals() {
+  const q = document.getElementById('signal-search').value.toLowerCase();
+  document.querySelectorAll('.signal-row').forEach(row => {
+    const matchTier   = activeFilters.has(row.dataset.tier);
+    const matchSearch = !q || row.dataset.search.includes(q);
+    row.style.display = (matchTier && matchSearch) ? 'flex' : 'none';
+  });
+}
+ 
+// ═══════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════
+renderOverview();
+renderSignalsList();
+renderFlags();
+renderThresholds();
+</script>
+</body>
+</html>
